@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	MaxBuffer = 1 << 21
+	MaxBuffer = 1 << 20
 )
 
 type readBuffer struct {

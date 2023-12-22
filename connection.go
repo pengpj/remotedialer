@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/rancher/remotedialer/metrics"
@@ -18,6 +19,8 @@ type connection struct {
 	addr          addr
 	session       *Session
 	connID        int64
+	maxBytes      int64
+	mu            sync.Mutex
 }
 
 func newConnection(connID int64, session *Session, proto, address string) *connection {
@@ -26,8 +29,9 @@ func newConnection(connID int64, session *Session, proto, address string) *conne
 			proto:   proto,
 			address: address,
 		},
-		connID:  connID,
-		session: session,
+		connID:   connID,
+		session:  session,
+		maxBytes: 10240,
 	}
 	c.backPressure = newBackPressure(c)
 	c.buffer = newReadBuffer(connID, c.backPressure)
@@ -97,10 +101,22 @@ func (c *connection) Write(b []byte) (int, error) {
 	}
 
 	// If the buffer is getting too big, wait a bit
-	if len(b) > 10240 {
-		println("backpressure", len(b))
-		time.Sleep(100 * time.Millisecond)
+	//if len(b) > 10240 {
+	//	println("backpressure", len(b))
+	//	time.Sleep(100 * time.Millisecond)
+	//}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.maxBytes < 0 {
+		for c.maxBytes < 0 {
+			println("backpressure", c.maxBytes)
+			time.Sleep(100 * time.Millisecond)
+			c.maxBytes = c.maxBytes + 10240
+		}
 	}
+
+	c.maxBytes = c.maxBytes - int64(len(b))
 
 	c.backPressure.Wait(cancel)
 	msg := newMessage(c.connID, b)

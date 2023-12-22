@@ -96,6 +96,12 @@ func (c *connection) Write(b []byte) (int, error) {
 		}(ctx)
 	}
 
+	// If the buffer is getting too big, wait a bit
+	if len(b) > 10240 {
+		println("backpressure", len(b))
+		time.Sleep(100 * time.Millisecond)
+	}
+
 	c.backPressure.Wait(cancel)
 	msg := newMessage(c.connID, b)
 	metrics.AddSMTotalTransmitBytesOnWS(c.session.clientKey, float64(len(msg.Bytes())))

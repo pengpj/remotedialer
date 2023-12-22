@@ -109,6 +109,7 @@ func (s *Session) Serve(ctx context.Context) (int, error) {
 		s.startPings(ctx)
 	}
 
+	// 看怎样在这里限制写入的速率
 	for {
 		msType, reader, err := s.conn.NextReader()
 		if err != nil {
@@ -132,6 +133,7 @@ func (s *Session) serveMessage(ctx context.Context, reader io.Reader) error {
 	}
 
 	if PrintTunnelData {
+		// 打印出来的数据不可读，可惜
 		logrus.Debug("REQUEST ", message)
 	}
 
